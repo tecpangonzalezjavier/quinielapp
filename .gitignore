@@ -1,0 +1,7 @@
+node_modules/
+data/quiniela.db.json
+.env
+.env.local
+.env.production
+*.log
+.DS_Store

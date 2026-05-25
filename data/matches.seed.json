@@ -1,0 +1,84 @@
+{
+  "matches": [
+    {
+      "id": "m01",
+      "group": "Grupo A",
+      "home": "Mexico",
+      "away": "Equipo A2",
+      "startsAt": "2026-06-11T19:00:00-06:00",
+      "venue": "Estadio Azteca, Ciudad de Mexico"
+    },
+    {
+      "id": "m02",
+      "group": "Grupo A",
+      "home": "Equipo A3",
+      "away": "Equipo A4",
+      "startsAt": "2026-06-12T18:00:00-06:00",
+      "venue": "Por definir"
+    },
+    {
+      "id": "m03",
+      "group": "Grupo A",
+      "home": "Mexico",
+      "away": "Equipo A3",
+      "startsAt": "2026-06-18T18:00:00-06:00",
+      "venue": "Por definir"
+    },
+    {
+      "id": "m04",
+      "group": "Grupo A",
+      "home": "Equipo A4",
+      "away": "Equipo A2",
+      "startsAt": "2026-06-18T21:00:00-06:00",
+      "venue": "Por definir"
+    },
+    {
+      "id": "m05",
+      "group": "Grupo A",
+      "home": "Equipo A4",
+      "away": "Mexico",
+      "startsAt": "2026-06-24T18:00:00-06:00",
+      "venue": "Por definir"
+    },
+    {
+      "id": "m06",
+      "group": "Grupo A",
+      "home": "Equipo A2",
+      "away": "Equipo A3",
+      "startsAt": "2026-06-24T18:00:00-06:00",
+      "venue": "Por definir"
+    },
+    {
+      "id": "m07",
+      "group": "Grupo B",
+      "home": "Canada",
+      "away": "Equipo B2",
+      "startsAt": "2026-06-12T13:00:00-06:00",
+      "venue": "Toronto"
+    },
+    {
+      "id": "m08",
+      "group": "Grupo B",
+      "home": "Equipo B3",
+      "away": "Equipo B4",
+      "startsAt": "2026-06-13T16:00:00-06:00",
+      "venue": "Por definir"
+    },
+    {
+      "id": "m09",
+      "group": "Grupo D",
+      "home": "Estados Unidos",
+      "away": "Equipo D2",
+      "startsAt": "2026-06-12T20:00:00-06:00",
+      "venue": "Los Angeles"
+    },
+    {
+      "id": "m10",
+      "group": "Grupo D",
+      "home": "Equipo D3",
+      "away": "Equipo D4",
+      "startsAt": "2026-06-13T19:00:00-06:00",
+      "venue": "Por definir"
+    }
+  ]
+}

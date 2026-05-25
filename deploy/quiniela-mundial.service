@@ -1,0 +1,16 @@
+[Unit]
+Description=Quiniela Mundial
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/quiniela-mundial
+EnvironmentFile=/opt/quiniela-mundial/.env
+ExecStart=/usr/bin/node /opt/quiniela-mundial/server.js
+Restart=always
+RestartSec=5
+User=quiniela
+Group=quiniela
+
+[Install]
+WantedBy=multi-user.target

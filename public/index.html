@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiniela Mundial</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="stadium-glow" aria-hidden="true"></div>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Fase de grupos</p>
+          <h1>Quiniela Mundial</h1>
+          <div class="hero-stats" id="heroStats"></div>
+        </div>
+        <div class="session" id="sessionBox"></div>
+      </section>
+
+      <section class="join" id="joinPanel">
+        <form id="joinForm" class="join-form">
+          <label>
+            Tu nombre
+            <input id="nameInput" name="name" autocomplete="name" maxlength="40" required placeholder="Ej. Carlos" />
+          </label>
+          <label id="accessField" hidden>
+            Codigo de acceso
+            <input id="accessInput" name="accessCode" autocomplete="off" placeholder="Solo si el sitio lo pide" />
+          </label>
+          <button type="submit">Entrar</button>
+        </form>
+        <p class="message" id="message"></p>
+      </section>
+
+      <section class="podium" aria-label="Primeros lugares">
+        <div class="podium-place second" id="podium2"></div>
+        <div class="podium-place first" id="podium1"></div>
+        <div class="podium-place third" id="podium3"></div>
+      </section>
+
+      <section class="layout">
+        <aside class="standings-panel">
+          <div class="panel-title">
+            <h2>Tabla</h2>
+            <span id="countText">0/50</span>
+          </div>
+          <div class="standings" id="standings"></div>
+        </aside>
+
+        <section class="matches-panel">
+          <div class="panel-title">
+            <h2>Partidos</h2>
+            <span id="lockHint">Puedes cambiar cada pick hasta que inicie su partido.</span>
+          </div>
+          <div class="matches" id="matches"></div>
+        </section>
+      </section>
+
+      <section class="admin-panel">
+        <details>
+          <summary>Admin: capturar resultados</summary>
+          <p class="admin-status" id="syncStatus"></p>
+          <form id="fixtureSyncForm" class="sync-form">
+            <input id="fixtureSyncAdminToken" type="password" placeholder="Token admin" />
+            <button type="submit">Importar partidos API</button>
+          </form>
+          <form id="syncForm" class="sync-form">
+            <input id="syncAdminToken" type="password" placeholder="Token admin" />
+            <button type="submit">Sincronizar API</button>
+          </form>
+          <form id="adminForm" class="admin-form">
+            <input id="adminToken" type="password" placeholder="Token admin" />
+            <select id="adminMatch"></select>
+            <select id="adminOutcome"></select>
+            <button type="submit">Guardar resultado</button>
+          </form>
+        </details>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
