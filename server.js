@@ -17,7 +17,7 @@ const ROOT = process.cwd();
 const PUBLIC_DIR = join(ROOT, "public");
 const DATA_DIR = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : join(ROOT, "data");
 const DB_PATH = join(DATA_DIR, "quiniela.db.json");
-const SEED_PATH = join(DATA_DIR, "matches.seed.json");
+const SEED_PATH = process.env.SEED_PATH ? resolve(process.env.SEED_PATH) : join(ROOT, "data", "matches.seed.json");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -347,6 +347,10 @@ async function syncResultsFromProvider() {
 }
 
 async function api(req, res, pathname) {
+  if (req.method === "GET" && pathname === "/health") {
+    return json(res, 200, { ok: true });
+  }
+
   if (req.method === "GET" && pathname === "/api/state") {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const participantId = url.searchParams.get("participantId");
@@ -494,7 +498,7 @@ async function staticFile(req, res, pathname) {
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    if (url.pathname.startsWith("/api/")) return api(req, res, url.pathname);
+    if (url.pathname === "/health" || url.pathname.startsWith("/api/")) return api(req, res, url.pathname);
     return staticFile(req, res, url.pathname);
   } catch (error) {
     json(res, error.status || 500, { error: error.message || "Error inesperado" });

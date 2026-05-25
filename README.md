@@ -98,6 +98,8 @@ Opciones sencillas:
 - Un servicio tipo Render, Railway, Fly.io, Koyeb o Replit si te permite disco persistente o volumen.
 - Un servidor casero o NAS con Node.js y un proxy como Caddy/Nginx.
 
+Para Railway, usa la guia especifica en `DEPLOY_RAILWAY.md`. Este repo incluye `railway.json`, `.dockerignore` y un `Dockerfile` preparado para montar un volumen en `/data`.
+
 Configura estas variables en el host:
 
 - `ACCESS_CODE`: codigo que deben conocer tus amigos para entrar.
