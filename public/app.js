@@ -4,6 +4,7 @@ const STORAGE_KEY = "quinielaParticipantId";
 const linkAccessCode = new URLSearchParams(location.search).get("code") || "";
 let state = null;
 let activeStage = "ALL";
+let hideClosedGroupStage = false;
 
 const outcomeLabel = {
   home: "Local",
@@ -135,7 +136,7 @@ function renderHeroStats() {
 }
 
 function renderStageTabs() {
-  const counts = state.matches.reduce((acc, match) => {
+  const counts = visibleByCollapse(state.matches).reduce((acc, match) => {
     const stage = match.stage || "GROUP_STAGE";
     acc.ALL = (acc.ALL || 0) + 1;
     acc[stage] = (acc[stage] || 0) + 1;
@@ -197,10 +198,29 @@ function renderStandings() {
 }
 
 function renderMatches() {
-  const matches = activeStage === "ALL" ? state.matches : state.matches.filter((match) => (match.stage || "GROUP_STAGE") === activeStage);
+  const collapsed = visibleByCollapse(state.matches);
+  const matches = activeStage === "ALL" ? collapsed : collapsed.filter((match) => (match.stage || "GROUP_STAGE") === activeStage);
+  renderMatchTools(matches.length, collapsed.length);
   $("#matches").innerHTML = matches
     .map((match) => matchCardMarkup(match))
-    .join("");
+    .join("") || `<p class="empty">No hay partidos visibles con este filtro.</p>`;
+}
+
+function visibleByCollapse(matches) {
+  if (!hideClosedGroupStage) return matches;
+  return matches.filter((match) => (match.stage || "GROUP_STAGE") !== "GROUP_STAGE" || !match.locked);
+}
+
+function renderMatchTools(currentCount, collapsedCount) {
+  const totalClosedGroups = state.matches.filter((match) => (match.stage || "GROUP_STAGE") === "GROUP_STAGE" && match.locked).length;
+  const button = $("#collapseClosedGroups");
+  button.classList.toggle("active", hideClosedGroupStage);
+  button.setAttribute("aria-pressed", String(hideClosedGroupStage));
+  button.textContent = hideClosedGroupStage ? "Mostrar grupos cerrados" : "Ocultar grupos cerrados";
+  button.disabled = totalClosedGroups === 0;
+  $("#visibleMatchCount").textContent = hideClosedGroupStage
+    ? `${currentCount}/${collapsedCount} visibles · ${totalClosedGroups} grupos cerrados ocultos`
+    : `${currentCount} visibles`;
 }
 
 function renderMatchCard(matchId, previousState) {
@@ -374,6 +394,16 @@ $("#stageTabs").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-stage]");
   if (!button) return;
   activeStage = button.dataset.stage;
+  renderStageTabs();
+  renderMatches();
+});
+
+$("#collapseClosedGroups").addEventListener("click", () => {
+  hideClosedGroupStage = !hideClosedGroupStage;
+  const visibleStages = new Set(visibleByCollapse(state.matches).map((match) => match.stage || "GROUP_STAGE"));
+  if (activeStage !== "ALL" && !visibleStages.has(activeStage)) {
+    activeStage = "ALL";
+  }
   renderStageTabs();
   renderMatches();
 });

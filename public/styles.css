@@ -386,6 +386,38 @@ select:focus {
   gap: 14px;
 }
 
+.match-tools {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 0 0 12px;
+}
+
+.collapse-closed {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.collapse-closed.active {
+  background: linear-gradient(135deg, var(--blue), #244b8f);
+  border-color: rgba(66, 165, 255, 0.62);
+  box-shadow: 0 12px 28px rgba(66, 165, 255, 0.18);
+}
+
+.collapse-closed:disabled {
+  opacity: 0.42;
+}
+
+#visibleMatchCount {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .stage-tabs {
   display: flex;
   flex-wrap: wrap;
