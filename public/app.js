@@ -3,6 +3,7 @@ const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = "quinielaParticipantId";
 const linkAccessCode = new URLSearchParams(location.search).get("code") || "";
 let state = null;
+let activeStage = "ALL";
 
 const outcomeLabel = {
   home: "Local",
@@ -62,6 +63,19 @@ const countryCodes = {
   "Uzbekistan": "uz"
 };
 
+const stageOrder = ["ALL", "GROUP_STAGE", "LAST_32", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "THIRD_PLACE", "FINAL"];
+
+const stageLabels = {
+  ALL: "Todos",
+  GROUP_STAGE: "Grupos",
+  LAST_32: "Dieciseisavos",
+  LAST_16: "Octavos",
+  QUARTER_FINALS: "Cuartos",
+  SEMI_FINALS: "Semis",
+  THIRD_PLACE: "3er lugar",
+  FINAL: "Final"
+};
+
 async function request(path, options = {}) {
   const response = await fetch(path, {
     headers: { "content-type": "application/json" },
@@ -95,6 +109,7 @@ function render() {
   renderHeroStats();
   renderPodium();
   renderStandings();
+  renderStageTabs();
   renderMatches();
   renderAdmin();
 }
@@ -103,6 +118,7 @@ function renderAfterPrediction(matchId, previousState) {
   renderHeroStats();
   renderPodium();
   renderStandings();
+  renderStageTabs();
   renderMatchCard(matchId, previousState);
   renderAdmin();
 }
@@ -116,6 +132,25 @@ function renderHeroStats() {
     <span><strong>${picked}</strong> picks tuyos</span>
     <span><strong>${finished}</strong> resultados</span>
   `;
+}
+
+function renderStageTabs() {
+  const counts = state.matches.reduce((acc, match) => {
+    const stage = match.stage || "GROUP_STAGE";
+    acc.ALL = (acc.ALL || 0) + 1;
+    acc[stage] = (acc[stage] || 0) + 1;
+    return acc;
+  }, {});
+
+  const availableStages = stageOrder.filter((stage) => counts[stage]);
+  $("#stageTabs").innerHTML = availableStages
+    .map((stage) => `
+      <button class="stage-tab ${activeStage === stage ? "active" : ""}" data-stage="${stage}">
+        <span>${escapeHtml(stageLabels[stage] || stage)}</span>
+        <small>${counts[stage]}</small>
+      </button>
+    `)
+    .join("");
 }
 
 function renderSession() {
@@ -162,7 +197,8 @@ function renderStandings() {
 }
 
 function renderMatches() {
-  $("#matches").innerHTML = state.matches
+  const matches = activeStage === "ALL" ? state.matches : state.matches.filter((match) => (match.stage || "GROUP_STAGE") === activeStage);
+  $("#matches").innerHTML = matches
     .map((match) => matchCardMarkup(match))
     .join("");
 }
@@ -191,12 +227,14 @@ function renderMatchCard(matchId, previousState) {
 function matchCardMarkup(match) {
   const pick = state.predictions?.[match.id]?.outcome;
   const result = state.results?.[match.id]?.outcome;
-  const disabled = !state.participant || match.locked ? "disabled" : "";
-  const matchStatus = match.locked ? "Bloqueado" : pick ? "Pick guardado" : "Abierto";
+  const disabled = !state.participant || match.locked || match.pendingTeams ? "disabled" : "";
+  const matchStatus = match.pendingTeams ? "Esperando equipos" : match.locked ? "Bloqueado" : pick ? "Pick guardado" : "Abierto";
+  const stage = match.stageLabel || stageLabels[match.stage] || match.group;
   return `
-    <article class="match-card ${pick ? "has-pick" : ""}" data-card-match="${escapeHtml(match.id)}">
+    <article class="match-card ${pick ? "has-pick" : ""} ${match.pendingTeams ? "pending-teams" : ""}" data-card-match="${escapeHtml(match.id)}">
       <div class="match-head">
         <span class="group-pill">${escapeHtml(match.group)}</span>
+        <span class="stage-pill">${escapeHtml(stage)}</span>
         <span>${formatDate(match.startsAt)}</span>
         <span class="match-status ${match.locked ? "locked" : ""}">${matchStatus}</span>
       </div>
@@ -206,9 +244,9 @@ function matchCardMarkup(match) {
         ${teamMarkup(match.away, "away")}
       </div>
       <div class="venue">${escapeHtml(match.venue)}</div>
-      <div class="pick-row">
+      <div class="pick-row ${match.allowDraw === false ? "no-draw" : ""}">
         ${pickButton(match, "home", match.home, pick, result, disabled)}
-        ${pickButton(match, "draw", "Empate", pick, result, disabled)}
+        ${match.allowDraw === false ? "" : pickButton(match, "draw", "Empate", pick, result, disabled)}
         ${pickButton(match, "away", match.away, pick, result, disabled)}
       </div>
     </article>
@@ -229,9 +267,10 @@ function pickButton(match, outcome, label, pick, result, disabled) {
 function teamMarkup(name, side) {
   const code = countryCodes[name];
   const displayName = displayTeamName(name);
-  const flag = code
+  const pending = isPendingTeam(displayName);
+  const flag = code && !pending
     ? `<img class="flag" src="https://flagcdn.com/w80/${code}.png" alt="" loading="lazy" referrerpolicy="no-referrer" />`
-    : `<span class="flag fallback">${initials(displayName)}</span>`;
+    : `<span class="flag fallback ${pending ? "pending" : ""}">${pending ? "?" : initials(displayName)}</span>`;
   return `
     <span class="team ${side}">
       ${side === "away" ? "" : flag}
@@ -242,7 +281,16 @@ function teamMarkup(name, side) {
 }
 
 function displayTeamName(name) {
-  return String(name).replace("CuraÃ§ao", "Curacao");
+  return String(name || "Por definir")
+    .replace("CuraÃ§ao", "Curacao")
+    .replace("CuraÃƒÂ§ao", "Curacao")
+    .replace("To Be Decided", "Por definir")
+    .replace("TBD", "Por definir");
+}
+
+function isPendingTeam(name) {
+  const value = displayTeamName(name);
+  return value === "Por definir" || value === "A determinar";
 }
 
 function initials(name) {
@@ -269,7 +317,7 @@ function renderAdmin() {
   $("#adminOutcome").innerHTML = `
     <option value="">Sin resultado</option>
     <option value="home">${escapeHtml(displayTeamName(selectedMatch.home))}</option>
-    <option value="draw">Empate</option>
+    ${selectedMatch.allowDraw === false ? "" : `<option value="draw">Empate</option>`}
     <option value="away">${escapeHtml(displayTeamName(selectedMatch.away))}</option>
   `;
 }
@@ -320,6 +368,14 @@ $("#matches").addEventListener("click", async (event) => {
     card?.classList.remove("saving-pick");
     setMessage(error.message);
   }
+});
+
+$("#stageTabs").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-stage]");
+  if (!button) return;
+  activeStage = button.dataset.stage;
+  renderStageTabs();
+  renderMatches();
 });
 
 $("#adminMatch").addEventListener("change", renderAdmin);

@@ -15,9 +15,12 @@ const AUTO_RESULT_SYNC = process.env.AUTO_RESULT_SYNC !== "false";
 const AUTO_FIXTURE_SYNC = process.env.AUTO_FIXTURE_SYNC === "true";
 const ROOT = process.cwd();
 const PUBLIC_DIR = join(ROOT, "public");
-const DATA_DIR = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : join(ROOT, "data");
+const DEFAULT_DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || join(ROOT, "data");
+const DATA_DIR = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(DEFAULT_DATA_DIR);
 const DB_PATH = join(DATA_DIR, "quiniela.db.json");
-const SEED_PATH = process.env.SEED_PATH ? resolve(process.env.SEED_PATH) : join(ROOT, "data", "matches.seed.json");
+const SEED_PATH = process.env.MATCHES_SEED_PATH || process.env.SEED_PATH
+  ? resolve(process.env.MATCHES_SEED_PATH || process.env.SEED_PATH)
+  : join(ROOT, "config", "matches.seed.json");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -30,6 +33,26 @@ const MIME = {
 
 let writeQueue = Promise.resolve();
 let syncInProgress = false;
+
+const STAGE_LABELS = {
+  GROUP_STAGE: "Fase de grupos",
+  LAST_32: "Dieciseisavos",
+  LAST_16: "Octavos",
+  QUARTER_FINALS: "Cuartos",
+  SEMI_FINALS: "Semifinales",
+  THIRD_PLACE: "Tercer lugar",
+  FINAL: "Final"
+};
+
+const STAGE_ORDER = {
+  GROUP_STAGE: 1,
+  LAST_32: 2,
+  LAST_16: 3,
+  QUARTER_FINALS: 4,
+  SEMI_FINALS: 5,
+  THIRD_PLACE: 6,
+  FINAL: 7
+};
 
 async function ensureDatabase() {
   await mkdir(DATA_DIR, { recursive: true });
@@ -110,6 +133,15 @@ function isLocked(match) {
   return Date.now() >= new Date(match.startsAt).getTime();
 }
 
+function isTeamKnown(team) {
+  const normalized = normalizeTeamName(team);
+  return Boolean(normalized) && !["por definir", "tbd", "to be decided", "a determinar"].includes(normalized);
+}
+
+function isMatchPendingTeams(match) {
+  return !isTeamKnown(match.home) || !isTeamKnown(match.away);
+}
+
 function calculateStandings(db) {
   const rows = db.participants.map((participant) => {
     const picks = db.predictions[participant.id] || {};
@@ -153,7 +185,12 @@ function appState(db, participantId = null) {
   const predictions = participant ? db.predictions[participant.id] || {} : {};
   return {
     participant: participant ? publicParticipant(participant) : null,
-    matches: db.matches.map((match) => ({ ...match, locked: isLocked(match) })),
+    matches: db.matches.map((match) => ({
+      ...match,
+      locked: isLocked(match),
+      pendingTeams: isMatchPendingTeams(match),
+      allowDraw: match.allowDraw !== false
+    })),
     predictions,
     results: db.results,
     standings: calculateStandings(db),
@@ -191,6 +228,18 @@ function normalizeTeamName(value) {
 }
 
 function apiOutcome(match) {
+  if (match.stage && match.stage !== "GROUP_STAGE") {
+    if (match.score?.winner === "HOME_TEAM") return "home";
+    if (match.score?.winner === "AWAY_TEAM") return "away";
+    const knockoutHome = match.score?.fullTime?.home;
+    const knockoutAway = match.score?.fullTime?.away;
+    if (Number.isFinite(knockoutHome) && Number.isFinite(knockoutAway)) {
+      if (knockoutHome > knockoutAway) return "home";
+      if (knockoutAway > knockoutHome) return "away";
+    }
+    return null;
+  }
+
   const home = match.score?.fullTime?.home;
   const away = match.score?.fullTime?.away;
   if (!Number.isFinite(home) || !Number.isFinite(away)) return null;
@@ -226,7 +275,6 @@ async function fetchFootballDataMatches() {
 
   const url = new URL(`https://api.football-data.org/v4/competitions/${FOOTBALL_DATA_COMPETITION}/matches`);
   url.searchParams.set("season", FOOTBALL_DATA_SEASON);
-  url.searchParams.set("stage", "GROUP_STAGE");
 
   const response = await fetch(url, {
     headers: { "X-Auth-Token": FOOTBALL_DATA_TOKEN }
@@ -240,7 +288,7 @@ async function fetchFootballDataMatches() {
 }
 
 function formatProviderGroup(value) {
-  return String(value || "GROUP_STAGE")
+  return STAGE_LABELS[value] || String(value || "GROUP_STAGE")
     .replace(/^GROUP_/, "Grupo ")
     .replace(/_/g, " ")
     .toLowerCase()
@@ -248,14 +296,19 @@ function formatProviderGroup(value) {
 }
 
 function providerMatchToLocalMatch(apiMatch, existingMatch = null) {
+  const stage = apiMatch.stage || "GROUP_STAGE";
   return {
     id: existingMatch?.id || `fd-${apiMatch.id}`,
     externalId: String(apiMatch.id),
-    group: formatProviderGroup(apiMatch.group),
+    stage,
+    stageLabel: STAGE_LABELS[stage] || formatProviderGroup(stage),
+    group: stage === "GROUP_STAGE" ? formatProviderGroup(apiMatch.group) : (STAGE_LABELS[stage] || formatProviderGroup(stage)),
+    matchday: apiMatch.matchday || null,
     home: apiMatch.homeTeam?.name || apiMatch.homeTeam?.shortName || "Por definir",
     away: apiMatch.awayTeam?.name || apiMatch.awayTeam?.shortName || "Por definir",
     startsAt: apiMatch.utcDate,
-    venue: apiMatch.venue || "Por definir"
+    venue: apiMatch.venue || "Por definir",
+    allowDraw: stage === "GROUP_STAGE"
   };
 }
 
@@ -265,16 +318,20 @@ async function syncFixturesFromProvider() {
 
   try {
     const payload = await fetchFootballDataMatches();
-    const apiMatches = (payload.matches || []).filter((match) => match.stage === "GROUP_STAGE");
+    const apiMatches = (payload.matches || []).filter((match) => STAGE_ORDER[match.stage || "GROUP_STAGE"]);
     const importedMatches = apiMatches
       .map((apiMatch) => {
         const existing = findLocalMatch(db.matches, apiMatch);
         return providerMatchToLocalMatch(apiMatch, existing);
       })
-      .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+      .sort((a, b) => {
+        const stageDiff = (STAGE_ORDER[a.stage] || 99) - (STAGE_ORDER[b.stage] || 99);
+        if (stageDiff) return stageDiff;
+        return new Date(a.startsAt) - new Date(b.startsAt);
+      });
 
-    if (importedMatches.length !== 72) {
-      throw new Error(`La API devolvio ${importedMatches.length} partidos de fase de grupos; esperaba 72.`);
+    if (importedMatches.length < 72) {
+      throw new Error(`La API devolvio ${importedMatches.length} partidos; esperaba al menos 72.`);
     }
 
     db.matches = importedMatches;
@@ -282,7 +339,11 @@ async function syncFixturesFromProvider() {
     db.sync.fixturesLastError = null;
     db.sync.fixturesUpdatedMatches = importedMatches.length;
     await writeDb(db);
-    return { importedMatches: importedMatches.length };
+    return {
+      importedMatches: importedMatches.length,
+      groupStageMatches: importedMatches.filter((match) => match.stage === "GROUP_STAGE").length,
+      knockoutMatches: importedMatches.filter((match) => match.stage !== "GROUP_STAGE").length
+    };
   } catch (error) {
     db.sync.fixturesLastError = error.message;
     await writeDb(db);
@@ -410,6 +471,10 @@ async function api(req, res, pathname) {
 
     if (!participant) return json(res, 404, { error: "Participante no encontrado." });
     if (!match) return json(res, 404, { error: "Partido no encontrado." });
+    if (isMatchPendingTeams(match)) return json(res, 423, { error: "Este partido aun no tiene equipos definidos." });
+    if (outcome === "draw" && match.allowDraw === false) {
+      return json(res, 400, { error: "En eliminatoria debes elegir al equipo que avanza." });
+    }
     if (isLocked(match)) return json(res, 423, { error: "Este partido ya inicio y esta bloqueado." });
 
     db.predictions[participant.id] ||= {};
@@ -435,6 +500,9 @@ async function api(req, res, pathname) {
     const db = await readDb();
     const match = db.matches.find((item) => item.id === String(input.matchId || ""));
     if (!match) return json(res, 404, { error: "Partido no encontrado." });
+    if (input.outcome === "draw" && match.allowDraw === false) {
+      return json(res, 400, { error: "En eliminatoria captura el equipo que avanza." });
+    }
 
     if (input.outcome === "") {
       delete db.results[match.id];

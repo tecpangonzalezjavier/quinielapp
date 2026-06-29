@@ -386,6 +386,42 @@ select:focus {
   gap: 14px;
 }
 
+.stage-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.stage-tab {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.stage-tab small {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 950;
+  height: 22px;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 7px;
+}
+
+.stage-tab.active {
+  background: linear-gradient(135deg, var(--green), #0d7a53);
+  border-color: rgba(198, 255, 74, 0.7);
+  box-shadow: 0 12px 28px rgba(0, 200, 120, 0.22);
+}
+
 .match-card {
   animation: riseIn 460ms ease both;
   background:
@@ -421,6 +457,14 @@ select:focus {
 .match-card.has-pick::before {
   background: linear-gradient(180deg, var(--lime), var(--green));
   opacity: 1;
+}
+
+.match-card.pending-teams {
+  border-style: dashed;
+}
+
+.match-card.pending-teams::before {
+  background: linear-gradient(180deg, var(--silver), rgba(255, 255, 255, 0.18));
 }
 
 .match-card.saving-pick {
@@ -464,6 +508,7 @@ select:focus {
 }
 
 .group-pill,
+.stage-pill,
 .match-status {
   border-radius: 999px;
   display: inline-flex;
@@ -474,6 +519,11 @@ select:focus {
 .group-pill {
   background: rgba(198, 255, 74, 0.13);
   color: var(--lime);
+}
+
+.stage-pill {
+  background: rgba(255, 255, 255, 0.11);
+  color: var(--ink);
 }
 
 .match-status {
@@ -528,6 +578,12 @@ select:focus {
   justify-content: center;
 }
 
+.flag.fallback.pending {
+  background: rgba(255, 255, 255, 0.11);
+  border-style: dashed;
+  color: var(--muted);
+}
+
 .vs {
   align-items: center;
   background:
@@ -556,6 +612,10 @@ select:focus {
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pick-row.no-draw {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .pick {
